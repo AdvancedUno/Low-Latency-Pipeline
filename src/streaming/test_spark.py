@@ -3,10 +3,11 @@ import os
 import sys
 
 # Windows Spark Setup
-current_dir = os.getcwd()
-hadoop_home = os.path.join(current_dir, "hadoop")
-os.environ["HADOOP_HOME"] = hadoop_home
-os.environ["PATH"] += os.pathsep + os.path.join(hadoop_home, "bin")
+if platform.system() == "Windows":
+    current_dir = os.getcwd()
+    hadoop_home = os.path.join(current_dir, "hadoop")
+    os.environ["HADOOP_HOME"] = hadoop_home
+    os.environ["PATH"] += os.pathsep + os.path.join(hadoop_home, "bin")
 
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, lit, element_at, to_timestamp
