@@ -1,13 +1,15 @@
 # ./streaming/normalize_l2.py
 import os
+import platform
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, lit, element_at, when, window, max
 from schemas import binance_schema, coinbase_schema
 
-# Windows Hadoop Fix
-hadoop_home = os.path.join(os.getcwd(), "hadoop")
-os.environ["HADOOP_HOME"] = hadoop_home
-os.environ["PATH"] += os.pathsep + os.path.join(hadoop_home, "bin")
+# Only apply Hadoop/winutils setup on Windows
+if platform.system() == "Windows":
+    hadoop_home = os.path.join(os.getcwd(), "hadoop")
+    os.environ["HADOOP_HOME"] = hadoop_home
+    os.environ["PATH"] += os.pathsep + os.path.join(hadoop_home, "bin")
 
 spark = SparkSession.builder \
     .appName("CryptoArbNormalization") \
