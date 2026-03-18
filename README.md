@@ -1,6 +1,6 @@
 # Low-Latency-Pipeline
 
-## 1. What Has Been Completed (EunHo's Contribution)
+## 1. What Has Been Completed
 
 The foundational data engineering pipeline is now fully operational. We are successfully capturing live market data from two distinct exchanges, normalizing their disparate JSON schemas, time-aligning the data, and calculating the arbitrage spread in real-time.
 
