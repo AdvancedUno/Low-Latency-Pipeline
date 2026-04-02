@@ -2,7 +2,7 @@
 import os
 import platform
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, lit, element_at, when, window, max
+from pyspark.sql.functions import col, lit, element_at, when, window, max, min
 from schemas import binance_schema, coinbase_schema
 
 # Only apply Hadoop/winutils setup on Windows
@@ -53,9 +53,9 @@ arbitrage_stream = unified_stream \
     ) \
     .agg(
         max(when(col("exchange") == "Binance", col("bid_price"))).alias("Binance_bid"),
-        max(when(col("exchange") == "Binance", col("ask_price"))).alias("Binance_ask"),
+        min(when(col("exchange") == "Binance", col("ask_price"))).alias("Binance_ask"),
         max(when(col("exchange") == "Coinbase", col("bid_price"))).alias("Coinbase_bid"),
-        max(when(col("exchange") == "Coinbase", col("ask_price"))).alias("Coinbase_ask")
+        min(when(col("exchange") == "Coinbase", col("ask_price"))).alias("Coinbase_ask")
     ) \
     .select(
         col("window.start").alias("time"),
