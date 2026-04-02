@@ -21,21 +21,21 @@ with DAG(
 
     start_binance = BashOperator(
         task_id="start_binance_ingestion",
-        bash_command="python ingestion/binance_ws.py",
+        bash_command="python src/ingestion/binance_ws.py",
         retries=2,
         retry_delay=timedelta(minutes=2),
     )
 
     start_coinbase = BashOperator(
         task_id="start_coinbase_ingestion",
-        bash_command="python ingestion/coinbase_ws.py",
+        bash_command="python src/ingestion/coinbase_ws.py",
         retries=2,
         retry_delay=timedelta(minutes=2),
     )
 
     start_spark = BashOperator(
         task_id="start_spark_normalization",
-        bash_command="spark-submit streaming/normalize_l2.py",
+        bash_command="spark-submit src/streaming/normalize_l2.py",
         retries=2,
         retry_delay=timedelta(minutes=2),
     )
@@ -48,4 +48,6 @@ with DAG(
         execution_timeout=timedelta(minutes=10),
     )
 
-    [start_binance, start_coinbase] >> start_spark >> run_analytics
+    start_binance >> start_spark
+    start_coinbase >> start_spark
+    start_spark >> run_analytics
