@@ -1,3 +1,5 @@
+# src/streaming/schemas.py
+
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, ArrayType, LongType
 
 # Binance depth5 snapshot schema
