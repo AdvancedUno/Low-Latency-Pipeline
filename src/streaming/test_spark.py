@@ -1,4 +1,5 @@
 # ./streaming/test_spark.py
+import platform
 import os
 import sys
 
