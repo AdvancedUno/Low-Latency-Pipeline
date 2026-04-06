@@ -52,3 +52,44 @@ Terminal 3: python src/streaming/normalize_l2.py
 
 Note: Because we are using a 10-second watermark, it will take about 15-20 seconds for the first .parquet files to appear in data/gold/arbitrage_spreads/.
 
+## 3. Airflow DAG Orchestration
+
+To support automated workflow execution, an Apache Airflow DAG has been introduced to orchestrate ingestion, normalization, and downstream analytics. This allows the pipeline to execute in a structured, dependency-driven manner instead of requiring manual execution across multiple terminals.
+
+### DAG Architecture Implemented:
+* **Ingestion Tasks:** 
+  * Added Airflow BashOperator tasks to execute the Binance and Coinbase ingestion scripts.
+  * Implemented bounded ingestion execution using --max-runtime-seconds to allow tasks to terminate cleanly.
+  * Ensures sufficient Bronze-layer data is captured before downstream processing begins.
+* **Normalization Task:**
+  * Added a Spark execution task using spark-submit to launch the normalization pipeline.
+  * Enforces task dependencies so Spark processing begins only after ingestion completes.
+  * Maintains the existing Silver and Gold layer transformations.
+* **Analytics Task:**
+  * Added a downstream task placeholder for additional analytics processing.
+  * Designed to support future reporting, warehouse queries, or monitoring queries.
+
+### Workflow Dependencies:
+
+The DAG enforces the following execution order:
+- Binance ingestion → Spark normalization
+- Coinbase ingestion → Spark normalization
+- Spark normalization → downstream analytics
+
+This ensures ingestion tasks complete before Spark processing begins.
+
+### DAG Execution Features:
+* Implemented retry logic (2 retries per task).
+* Configured retry delays of 2 minutes.
+* Disabled automatic scheduling to allow manual DAG triggering.
+* Added execution timeout controls for downstream analytics tasks.
+* Structured tasks to support future scheduling extensions.
+
+### Design Considerations:
+To make the ingestion scripts compatible with Airflow execution, bounded runtime collection was implemented. This allows ingestion processes to:
+* Collect live exchange data
+* Persist Bronze-layer files
+* Exit cleanly
+* Enable deterministic DAG execution
+
+This design preserves real-time ingestion capabilities while supporting reproducible workflow orchestration.
