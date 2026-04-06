@@ -72,8 +72,8 @@ arbitrage_stream = unified_stream \
 query = arbitrage_stream.writeStream \
     .outputMode("append") \
     .format("parquet") \
-    .option("path", "data/gold/arbitrage_spreads/") \
-    .option("checkpointLocation", "checkpoint/gold_arbitrage/") \
+    .option("path", "s3a://crypto-arb-gold-yimeng/gold/arbitrage_spreads/") \
+    .option("checkpointLocation", "s3a://crypto-arb-gold-yimeng/checkpoints/gold_arbitrage/") \
     .trigger(processingTime='10 seconds') \
     .start()
 
