@@ -21,14 +21,14 @@ with DAG(
 
     start_binance = BashOperator(
         task_id="start_binance_ingestion",
-        bash_command="python src/ingestion/binance_ws.py",
+        bash_command="python src/ingestion/binance_ws.py --max-runtime-seconds 60",
         retries=2,
         retry_delay=timedelta(minutes=2),
     )
 
     start_coinbase = BashOperator(
         task_id="start_coinbase_ingestion",
-        bash_command="python src/ingestion/coinbase_ws.py",
+        bash_command="python src/ingestion/coinbase_ws.py --max-runtime-seconds 60",
         retries=2,
         retry_delay=timedelta(minutes=2),
     )

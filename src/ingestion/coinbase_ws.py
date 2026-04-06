@@ -7,6 +7,7 @@ import time
 import os
 import ssl
 import certifi
+import argparse
 
 OUTPUT_DIR = "data/bronze/coinbase"
 WS_URL = "wss://ws-feed.exchange.coinbase.com"
@@ -20,7 +21,6 @@ SUBSCRIBE_MSG = {
 }
 
 def write_buffer(buffer):
-    """Write buffered messages to a newline-delimited JSON file."""
     if not buffer:
         return
 
@@ -33,9 +33,13 @@ def write_buffer(buffer):
 
     print(f"Wrote {len(buffer)} records to {filename}")
 
-async def stream_coinbase():
+async def stream_coinbase(max_runtime_seconds=None):
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     ssl_context = ssl.create_default_context(cafile=certifi.where())
+
+    end_time = None
+    if max_runtime_seconds is not None:
+        end_time = time.time() + max_runtime_seconds
 
     while True:
         buffer = []
@@ -53,6 +57,11 @@ async def stream_coinbase():
                 print("Subscription message sent.")
 
                 while True:
+                    if end_time is not None and time.time() >= end_time:
+                        print("Reached max runtime. Flushing remaining Coinbase data and stopping.")
+                        write_buffer(buffer)
+                        return
+
                     msg = await ws.recv()
                     data = json.loads(msg)
 
@@ -64,16 +73,20 @@ async def stream_coinbase():
                             write_buffer(buffer)
                             buffer = []
 
-        except KeyboardInterrupt:
-            print("Stopping Coinbase stream...")
-            write_buffer(buffer)
-            raise
-
         except Exception as e:
             print(f"Coinbase error: {e}")
             write_buffer(buffer)
+
+            if end_time is not None and time.time() >= end_time:
+                print("Reached max runtime during recovery. Stopping Coinbase stream.")
+                return
+
             print(f"Reconnect attempt in {RECONNECT_DELAY} seconds...")
             await asyncio.sleep(RECONNECT_DELAY)
 
 if __name__ == "__main__":
-    asyncio.run(stream_coinbase())
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--max-runtime-seconds", type=int, default=None)
+    args = parser.parse_args()
+
+    asyncio.run(stream_coinbase(args.max_runtime_seconds))
