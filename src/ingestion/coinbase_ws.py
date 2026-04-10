@@ -8,10 +8,11 @@ import os
 import ssl
 import certifi
 import argparse
+from kafka import KafkaProducer
 
-OUTPUT_DIR = "data/bronze/coinbase"
+KAFKA_BOOTSTRAP = "localhost:9092"
+TOPIC = "coinbase-raw"
 WS_URL = "wss://ws-feed.exchange.coinbase.com"
-BATCH_SIZE = 10
 RECONNECT_DELAY = 5
 
 SUBSCRIBE_MSG = {
@@ -20,68 +21,35 @@ SUBSCRIBE_MSG = {
     "channels": ["level2_batch"]
 }
 
-def write_buffer(buffer):
-    if not buffer:
-        return
 
-    ts = int(time.time() * 1000)
-    filename = os.path.join(OUTPUT_DIR, f"cb_{ts}.json")
-
-    with open(filename, "w") as f:
-        for item in buffer:
-            f.write(json.dumps(item) + "\n")
-
-    print(f"Wrote {len(buffer)} records to {filename}")
 
 async def stream_coinbase(max_runtime_seconds=None):
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    
     ssl_context = ssl.create_default_context(cafile=certifi.where())
 
-    end_time = None
-    if max_runtime_seconds is not None:
-        end_time = time.time() + max_runtime_seconds
+
+    producer = KafkaProducer(
+        bootstrap_servers=KAFKA_BOOTSTRAP,
+        value_serializer=lambda v: json.dumps(v).encode("utf-8")
+    )
+
 
     while True:
-        buffer = []
-
         try:
-            print(f"Connecting to {WS_URL}...")
-            async with websockets.connect(
-                WS_URL,
-                ssl=ssl_context,
-                max_size=None,
-                ping_interval=30
-            ) as ws:
-                print("Connected to Coinbase successfully!")
+            print(f"Connecting to Coinbase at {WS_URL}...")
+            async with websockets.connect(WS_URL, ssl=ssl_context, ping_interval=30) as ws:
                 await ws.send(json.dumps(SUBSCRIBE_MSG))
-                print("Subscription message sent.")
-
+                print("Connected and subscribed to Coinbase!")
+                
                 while True:
-                    if end_time is not None and time.time() >= end_time:
-                        print("Reached max runtime. Flushing remaining Coinbase data and stopping.")
-                        write_buffer(buffer)
-                        return
-
                     msg = await ws.recv()
                     data = json.loads(msg)
-
+                    
                     if data.get("type") == "l2update":
                         data["receipt_timestamp"] = time.time() * 1000
-                        buffer.append(data)
-
-                        if len(buffer) >= BATCH_SIZE:
-                            write_buffer(buffer)
-                            buffer = []
-
+                        producer.send(TOPIC, value=data)
         except Exception as e:
-            print(f"Coinbase error: {e}")
-            write_buffer(buffer)
-
-            if end_time is not None and time.time() >= end_time:
-                print("Reached max runtime during recovery. Stopping Coinbase stream.")
-                return
-
-            print(f"Reconnect attempt in {RECONNECT_DELAY} seconds...")
+            print(f"Coinbase error/disconnect: {e}. Reconnecting in {RECONNECT_DELAY}s...")
             await asyncio.sleep(RECONNECT_DELAY)
 
 if __name__ == "__main__":
