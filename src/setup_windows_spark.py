@@ -19,7 +19,6 @@ def download_hadoop_winutils():
         else:
             print(f" -> {file} already exists locally.")
             
-    print("\n✅ Download complete. You can now run your test script.")
 
 if __name__ == "__main__":
     download_hadoop_winutils()
