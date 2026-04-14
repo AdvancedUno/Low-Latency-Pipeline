@@ -1,23 +1,32 @@
 #!/bin/bash
 
-echo "Starting Cryptocurrency Arbitrage Pipeline..."
+# Start docker compose
+echo "Starting Kafka and Zookeeper..."
+docker-compose up -d
 
-# Start Ingestion streams in the background
+# Wait for Kafka to be ready
+echo "Waiting for Kafka to be ready..."
+sleep 10
+
+# Run all pipeline components in parallel
+echo "Starting pipeline..."
+
 python src/ingestion/binance_ws.py &
 BINANCE_PID=$!
-echo "Binance ingestion started (PID: $BINANCE_PID)"
-
 
 python src/ingestion/coinbase_ws.py &
 COINBASE_PID=$!
-echo "Coinbase ingestion started (PID: $COINBASE_PID)"
 
-# just few seconds to connect and buffer initial data to Kafka
-sleep 5
+python src/streaming/flink_arb_pipeline.py &
+FLINK_PID=$!
 
-# start the Apache Flink Streaming Job
-echo "Starting Flink Normalization and Analytics Job..."
-python src/streaming/flink_arb_pipeline.py
+python src/analytics/live_dashboard.py &
+DASHBOARD_PID=$!
 
-# Cleanup on exit
-trap "kill $BINANCE_PID $COINBASE_PID; exit" INT TERM
+echo "Pipeline running. Press Ctrl+C to stop."
+
+# On Ctrl+C, kill all background processes
+trap "echo 'Stopping pipeline...'; kill $BINANCE_PID $COINBASE_PID $FLINK_PID $DASHBOARD_PID; docker-compose down; exit 0" SIGINT
+
+# Wait forever until Ctrl+C
+wait
