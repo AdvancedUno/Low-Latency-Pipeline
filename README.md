@@ -93,3 +93,54 @@ To make the ingestion scripts compatible with Airflow execution, bounded runtime
 * Enable deterministic DAG execution
 
 This design preserves real-time ingestion capabilities while supporting reproducible workflow orchestration.
+
+
+
+
+# Runbook: Low-Latency Crypto Arbitrage Pipeline
+
+### Virtual Environment Activation
+``` bash
+# 1. Create the virtual environment
+python -m venv venv
+
+# 2. Activate it!
+# WINDOWS
+.\venv\Scripts\activate
+# MAC / LINUX
+source venv/bin/activate
+
+# 3. Install dependencies
+pip install apache-flink==1.18.1 kafka-python websockets certifi
+
+
+cd src/streaming
+
+# WINDOWS
+.\setup_flink_jars.ps1
+
+# MAC / LINUX
+# You must make the script executable first!
+chmod +x setup_flink_jars.sh
+./setup_flink_jars.sh
+
+cd ../..
+
+
+```
+
+
+## Injecting AWS Credentials (For Yimeng / S3 Testing)
+
+``` bash
+### WINDOWS (PowerShell)
+$env:AWS_ACCESS_KEY_ID="AKIA..."
+$env:AWS_SECRET_ACCESS_KEY="wJalr..."
+$env:AWS_REGION="us-east-1"
+
+### MAC / LINUX (Bash/Zsh)
+export AWS_ACCESS_KEY_ID="AKIA..."
+export AWS_SECRET_ACCESS_KEY="wJalr..."
+export AWS_REGION="us-east-1"
+
+```

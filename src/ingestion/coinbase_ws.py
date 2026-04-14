@@ -1,4 +1,4 @@
-# ./ingestion/coinbase_ws.py
+# src/ingestion/coinbase_ws.py
 
 import asyncio
 import websockets
@@ -37,7 +37,7 @@ async def stream_coinbase(max_runtime_seconds=None):
     while True:
         try:
             print(f"Connecting to Coinbase at {WS_URL}...")
-            async with websockets.connect(WS_URL, ssl=ssl_context, ping_interval=30) as ws:
+            async with websockets.connect(WS_URL, ssl=ssl_context, ping_interval=30, max_size=None ) as ws:
                 await ws.send(json.dumps(SUBSCRIBE_MSG))
                 print("Connected and subscribed to Coinbase!")
                 

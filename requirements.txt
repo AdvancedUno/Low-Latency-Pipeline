@@ -7,3 +7,4 @@ requests==2.31.0
 apache-flink==1.18.0
 certifi>=2023.7.22
 kafka-python==2.0.2
+numpy<2

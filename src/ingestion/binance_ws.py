@@ -1,4 +1,4 @@
-# ./ingestion/binance_ws.py
+# src/ingestion/binance_ws.py
 
 import asyncio
 import websockets
