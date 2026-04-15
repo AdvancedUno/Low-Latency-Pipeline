@@ -1,5 +1,9 @@
 # src/reporting/daily_report_workflow.py
 
+# crontab -e
+# 0 2 * * * /usr/bin/python3 /path/to/project/src/reporting/daily_report_workflow.py
+# Daily 2 AM run
+
 import subprocess
 import sys
 from datetime import datetime
