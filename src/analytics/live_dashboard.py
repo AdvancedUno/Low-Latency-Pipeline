@@ -1,4 +1,4 @@
-# src/analytics/live_dashboard.py
+# analytics/live_dashboard.py
 import json
 from kafka import KafkaConsumer
 from collections import deque
@@ -35,7 +35,7 @@ for msg in consumer:
 
     from datetime import datetime
     ts = datetime.fromtimestamp(r["window_start_ms"] / 1000).strftime("%H:%M:%S.%f")[:12]
-    arb_flag = "Ok" if r["arb_open"] else " "
+    arb_flag = "OK" if r["arb_open"] else " "
 
     print(f"{ts:>14} | {r['Binance_bid']:>10.2f} | {r['Coinbase_ask']:>10.2f} | "
           f"{s1:>+15.4f} | {s2:>+15.4f} | {arb_flag:>5}")

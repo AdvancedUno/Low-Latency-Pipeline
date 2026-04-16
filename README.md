@@ -144,3 +144,19 @@ export AWS_SECRET_ACCESS_KEY="wJalr..."
 export AWS_REGION="us-east-1"
 
 ```
+
+``` bash
+PYFLINK_LIB=$(python -c "import pyflink, os; print(os.path.join(os.path.dirname(pyflink.__file__), 'lib'))")
+echo "Downloading MapReduce JAR to: $PYFLINK_LIB"
+curl -o "$PYFLINK_LIB/hadoop-mapreduce-client-core-3.3.4.jar" "https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-mapreduce-client-core/3.3.4/hadoop-mapreduce-client-core-3.3.4.jar"
+echo "Done!"
+```
+
+``` bash
+
+PYFLINK_LIB=$(python -c "import pyflink, os; print(os.path.join(os.path.dirname(pyflink.__file__), 'lib'))")
+echo "Downloading MapReduce JAR to: $PYFLINK_LIB"
+curl -o "$PYFLINK_LIB/hadoop-mapreduce-client-core-3.3.4.jar" "https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-mapreduce-client-core/3.3.4/hadoop-mapreduce-client-core-3.3.4.jar"
+echo "Done!"
+
+```
