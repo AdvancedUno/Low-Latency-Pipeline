@@ -1,3 +1,5 @@
+# src/dashboard/live_dashboard.py
+
 import json
 from collections import deque
 
