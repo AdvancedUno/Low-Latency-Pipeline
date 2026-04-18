@@ -14,8 +14,7 @@ from pyflink.common import WatermarkStrategy, Types, Duration, Row
 
 KAFKA_BOOTSTRAP = "localhost:9092"
 S3_PATH = "s3a://crypto-arb-gold-yimeng/gold/arbitrage_spreads/" # update this to local if you don't have S3 access
-
-
+# S3_PATH = "file:///C:/Users/ehlee/workspace/school/cse5114/Low-Latency-Pipeline/data/gold/"
 
 #  Parsers 
 def parse_binance(raw: str):
@@ -94,6 +93,7 @@ class TupleTimestampAssigner(TimestampAssigner):
 def build_pipeline():
     env = StreamExecutionEnvironment.get_execution_environment()
     env.set_parallelism(1)
+    env.enable_checkpointing(60000)
 
     #  Kafka Sources 
     def make_kafka_source(topic: str) -> KafkaSource:
