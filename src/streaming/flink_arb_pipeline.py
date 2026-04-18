@@ -11,7 +11,7 @@ from pyflink.common.watermark_strategy import TimestampAssigner
 from pyflink.table import StreamTableEnvironment
 from pyflink.common.time import Time
 from pyflink.common import WatermarkStrategy, Types, Duration, Row
-from pyspark import context
+from pyflink.datastream.checkpoint_storage import FileSystemCheckpointStorage
 
 KAFKA_BOOTSTRAP = "localhost:9092"
 S3_PATH = "s3a://crypto-arb-gold-yimeng/gold/arbitrage_spreads/" # update this to local if you don't have S3 access
@@ -96,8 +96,10 @@ def build_pipeline():
     
     env.enable_checkpointing(60000)
     raw_path = os.path.abspath('flink_checkpoints').replace('\\', '/')
-    env.get_checkpoint_config().set_checkpoint_storage_dir(f"file:///{raw_path}")
-
+    
+    # Use the modern, version-proof storage class
+    storage = FileSystemCheckpointStorage(f"file:///{raw_path}")
+    env.get_checkpoint_config().set_checkpoint_storage(storage)
     #  Kafka Sources 
     def make_kafka_source(topic: str) -> KafkaSource:
         return (
