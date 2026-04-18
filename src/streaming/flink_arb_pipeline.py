@@ -11,6 +11,7 @@ from pyflink.common.watermark_strategy import TimestampAssigner
 from pyflink.table import StreamTableEnvironment
 from pyflink.common.time import Time
 from pyflink.common import WatermarkStrategy, Types, Duration, Row
+from pyspark import context
 
 KAFKA_BOOTSTRAP = "localhost:9092"
 S3_PATH = "s3a://crypto-arb-gold-yimeng/gold/arbitrage_spreads/" # update this to local if you don't have S3 access
@@ -72,17 +73,16 @@ class ArbitrageWindowFunction(ProcessWindowFunction):
         spread_bn_cb = bn_bid - cb_ask   # buy on Coinbase, sell on Binance
         spread_cb_bn = cb_bid - bn_ask   # buy on Binance,  sell on Coinbase
 
-        result = {
-            "window_start_ms":      context.window().start,
-            "Binance_bid":          bn_bid,
-            "Binance_ask":          bn_ask,
-            "Coinbase_bid":         cb_bid,
-            "Coinbase_ask":         cb_ask,
-            "spread_bn_bid_cb_ask": spread_bn_cb,
-            "spread_cb_bid_bn_ask": spread_cb_bn,
-            "arb_open":             spread_bn_cb > 0 or spread_cb_bn > 0,
-        }
-        yield json.dumps(result)
+        yield Row(
+            window_start_ms=context.window().start,
+            Binance_bid=bn_bid,
+            Binance_ask=bn_ask,
+            Coinbase_bid=cb_bid,
+            Coinbase_ask=cb_ask,
+            spread_bn_bid_cb_ask=spread_bn_cb,
+            spread_cb_bid_bn_ask=spread_cb_bn,
+            arb_open=spread_bn_cb > 0 or spread_cb_bn > 0
+        )
 
 #  Timestamp Assigner 
 class TupleTimestampAssigner(TimestampAssigner):
@@ -93,6 +93,10 @@ class TupleTimestampAssigner(TimestampAssigner):
 def build_pipeline():
     env = StreamExecutionEnvironment.get_execution_environment()
     env.set_parallelism(1)
+    
+    env.enable_checkpointing(60000)
+    raw_path = os.path.abspath('flink_checkpoints').replace('\\', '/')
+    env.get_checkpoint_config().set_checkpoint_storage_dir(f"file:///{raw_path}")
 
     #  Kafka Sources 
     def make_kafka_source(topic: str) -> KafkaSource:
@@ -145,34 +149,38 @@ def build_pipeline():
     t_env = StreamTableEnvironment.create(env)
 
     gold_schema = Types.ROW_NAMED(
-        [
-            "window_start_ms", "Binance_bid", "Binance_ask",
-            "Coinbase_bid",    "Coinbase_ask",
-            "spread_bn_bid_cb_ask", "spread_cb_bid_bn_ask", "arb_open",
-        ],
-        [
-            Types.LONG(),   Types.DOUBLE(), Types.DOUBLE(),
-            Types.DOUBLE(), Types.DOUBLE(),
-            Types.DOUBLE(), Types.DOUBLE(), Types.BOOLEAN(),
-        ]
+        ["window_start_ms", "Binance_bid", "Binance_ask", "Coinbase_bid", "Coinbase_ask", "spread_bn_bid_cb_ask", "spread_cb_bid_bn_ask", "arb_open"],
+        [Types.LONG(), Types.DOUBLE(), Types.DOUBLE(), Types.DOUBLE(), Types.DOUBLE(), Types.DOUBLE(), Types.DOUBLE(), Types.BOOLEAN()]
     )
 
-    def json_to_row(json_str):
-        d = json.loads(json_str)
-        # Use Flink's Row object instead of a Python tuple
-        return Row(
-            window_start_ms=d["window_start_ms"],
-            Binance_bid=d["Binance_bid"],
-            Binance_ask=d["Binance_ask"],
-            Coinbase_bid=d["Coinbase_bid"],
-            Coinbase_ask=d["Coinbase_ask"],
-            spread_bn_bid_cb_ask=d["spread_bn_bid_cb_ask"],
-            spread_cb_bid_bn_ask=d["spread_cb_bid_bn_ask"],
-            arb_open=d["arb_open"]
-        )
+    #  Arbitrage Window 
+    arb_stream = (
+        binance_stream
+        .union(coinbase_stream)
+        .key_by(lambda x: "BTC-USD")
+        .window(TumblingEventTimeWindows.of(Time.seconds(1)))
+        .process(ArbitrageWindowFunction(), output_type=gold_schema) # <-- CHANGE THIS LINE
+    )
 
-    row_stream = arb_stream.map(json_to_row, output_type=gold_schema)
-    table      = t_env.from_data_stream(row_stream)
+    # def json_to_row(json_str):
+    #     d = json.loads(json_str)
+    #     # Use Flink's Row object instead of a Python tuple
+    #     return Row(
+    #         window_start_ms=d["window_start_ms"],
+    #         Binance_bid=d["Binance_bid"],
+    #         Binance_ask=d["Binance_ask"],
+    #         Coinbase_bid=d["Coinbase_bid"],
+    #         Coinbase_ask=d["Coinbase_ask"],
+    #         spread_bn_bid_cb_ask=d["spread_bn_bid_cb_ask"],
+    #         spread_cb_bid_bn_ask=d["spread_cb_bid_bn_ask"],
+    #         arb_open=d["arb_open"]
+    #     )
+
+    # row_stream = arb_stream.map(json_to_row, output_type=gold_schema)
+    # table      = t_env.from_data_stream(row_stream)
+    
+    t_env = StreamTableEnvironment.create(env)
+    table = t_env.from_data_stream(arb_stream)
 
     #  Sink DDL: S3 Parquet
     t_env.execute_sql(f"""
