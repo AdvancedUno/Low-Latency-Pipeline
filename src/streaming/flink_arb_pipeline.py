@@ -93,7 +93,6 @@ class TupleTimestampAssigner(TimestampAssigner):
 def build_pipeline():
     env = StreamExecutionEnvironment.get_execution_environment()
     env.set_parallelism(1)
-    env.enable_checkpointing(60000)
 
     #  Kafka Sources 
     def make_kafka_source(topic: str) -> KafkaSource:
