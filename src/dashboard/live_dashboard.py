@@ -1,6 +1,7 @@
 # src/dashboard/live_dashboard.py
 
 import json
+import time
 from collections import deque
 
 import pandas as pd
@@ -13,9 +14,6 @@ MAX_ROWS = 500
 
 st.set_page_config(page_title="Crypto Arbitrage Dashboard", layout="wide")
 st.title("Live Crypto Arbitrage Dashboard")
-
-# Auto-refresh every 2 seconds
-st.autorefresh(interval=2000, key="dashboard_refresh")
 
 # Keep recent rows across reruns
 if "rows" not in st.session_state:
@@ -34,10 +32,11 @@ consumer = KafkaConsumer(
 for msg in consumer:
     st.session_state.rows.append(msg.value)
 
-# If no data yet, stop early
+# If no data yet, wait 2 seconds and refresh again instead of stopping
 if not st.session_state.rows:
-    st.info("Waiting for live arbitrage data...")
-    st.stop()
+    st.info("Waiting for live arbitrage data... (Ensure Flink and WebSockets are running!)")
+    time.sleep(2)
+    st.rerun()
 
 # Build DataFrame
 df = pd.DataFrame(list(st.session_state.rows))
@@ -52,9 +51,9 @@ max_spread_cb_bn = df["spread_cb_bid_bn_ask"].tail(50).max()
 
 # Status banner
 if latest["arb_open"]:
-    st.success("Arbitrage opportunity currently open")
+    st.success("Arbitrage opportunity currently open!")
 else:
-    st.warning("No arbitrage opportunity currently open")
+    st.warning("No arbitrage opportunity currently open.")
 
 # Top metrics
 c1, c2, c3, c4 = st.columns(4)
@@ -97,3 +96,7 @@ st.dataframe(
     ]],
     use_container_width=True
 )
+
+# Auto-refresh the dashboard every 2 seconds natively
+time.sleep(2)
+st.rerun()
