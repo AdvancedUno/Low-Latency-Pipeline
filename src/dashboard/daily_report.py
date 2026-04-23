@@ -1,7 +1,10 @@
+from dotenv import load_dotenv
 import os
 import streamlit as st
 import pandas as pd
 import snowflake.connector
+
+load_dotenv()
 
 st.set_page_config(page_title="Daily Arbitrage Report", layout="wide")
 
