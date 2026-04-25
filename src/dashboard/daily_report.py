@@ -127,10 +127,10 @@ WHERE DATE(event_start_ts) = CURRENT_DATE - 1
 avg_events_per_sec = """
 WITH per_second AS (
     SELECT
-        DATE_TRUNC('second', event_start_ts) AS ts_sec,
+        DATE_TRUNC('second', ts) AS ts_sec,
         COUNT(*) AS events_per_sec
-    FROM btc_quotes
-    WHERE DATE(event_start_ts) = CURRENT_DATE - 1
+    FROM arb_clean
+    WHERE DATE(ts) = CURRENT_DATE - 1
     GROUP BY 1
 )
 SELECT AVG(events_per_sec) AS avg_events_per_sec
@@ -140,10 +140,10 @@ FROM per_second;"""
 peak_ingestion_rate = """
 WITH per_second AS (
     SELECT
-        DATE_TRUNC('second', event_start_ts) AS ts_sec,
+        DATE_TRUNC('second', ts) AS ts_sec,
         COUNT(*) AS events_per_sec
-    FROM btc_quotes
-    WHERE DATE(event_start_ts) = CURRENT_DATE - 1
+    FROM arb_clean
+    WHERE DATE(ts) = CURRENT_DATE - 1
     GROUP BY 1
 )
 SELECT MAX(events_per_sec) AS peak_events_per_sec
@@ -151,6 +151,14 @@ FROM per_second;"""
 
 # Top 10 ingestion spikes
 top_ingestion_spikes = """
+WITH per_second AS (
+    SELECT
+        DATE_TRUNC('second', ts) AS ts_sec,
+        COUNT(*) AS events_per_sec
+    FROM arb_clean
+    WHERE DATE(ts) = CURRENT_DATE - 1
+    GROUP BY 1
+)
 SELECT *
 FROM per_second
 ORDER BY events_per_sec DESC
@@ -159,23 +167,23 @@ LIMIT 10;"""
 # Total daily volume (events)
 daily_volume = """
 SELECT COUNT(*) AS total_events
-FROM btc_quotes
-WHERE DATE(event_ts) = CURRENT_DATE - 1;"""
+FROM arb_clean
+WHERE DATE(ts) = CURRENT_DATE - 1;"""
 
 # Data per day
 daily_data = """
 SELECT
     SUM(LENGTH(TO_JSON(OBJECT_CONSTRUCT(*)))) AS total_bytes
-FROM btc_quotes
-WHERE DATE(event_ts) = CURRENT_DATE - 1;"""
+FROM arb_clean
+WHERE DATE(ts) = CURRENT_DATE - 1;"""
 
 # Events per hour
 hourly_events = """
 SELECT
-    DATE_TRUNC('hour', event_ts) AS hour,
+    DATE_TRUNC('hour', ts) AS hour,
     COUNT(*) AS events_per_hour
-FROM btc_quotes
-WHERE DATE(event_ts) = CURRENT_DATE - 1
+FROM arb_clean
+WHERE DATE(ts) = CURRENT_DATE - 1
 GROUP BY 1
 ORDER BY 1;"""
 
@@ -189,6 +197,12 @@ duration_df = run_query(duration_bucket_query)
 spread_df = run_query(spread_bucket_query)
 top_events_df = run_query(top_events_query)
 fee_df = run_query(fee_adjusted_query)
+avg_eps_df = run_query(avg_events_per_sec)
+peak_eps_df = run_query(peak_ingestion_rate)
+daily_vol_df = run_query(daily_volume)
+top_spikes_df = run_query(top_ingestion_spikes)
+daily_data_df = run_query(daily_data)
+hourly_events_df = run_query(hourly_events)
 
 # ---------------------------
 # KPIs
@@ -204,6 +218,34 @@ if not kpi_df.empty:
     c5.metric(
         "Profitable After Fees",
         int(fee_df.iloc[0]["PROFITABLE_EVENTS_AFTER_FEES"]) if not fee_df.empty and pd.notna(fee_df.iloc[0]["PROFITABLE_EVENTS_AFTER_FEES"]) else 0
+    )
+
+# ---------------------------
+# Pipeline Scale Metrics
+# ---------------------------
+st.subheader("Pipeline Scale Metrics")
+
+if (
+    not avg_eps_df.empty
+    and not peak_eps_df.empty
+    and not daily_vol_df.empty
+    and pd.notna(avg_eps_df.iloc[0]["AVG_EVENTS_PER_SEC"])
+):
+    c1, c2, c3 = st.columns(3)
+
+    c1.metric(
+        "Avg Events/sec",
+        f'{avg_eps_df.iloc[0]["AVG_EVENTS_PER_SEC"]:.2f}'
+    )
+
+    c2.metric(
+        "Peak Events/sec",
+        f"{int(peak_eps_df.iloc[0]['PEAK_EVENTS_PER_SEC']):,}"
+    )
+
+    c3.metric(
+        "Daily Events",
+        f"{int(daily_vol_df.iloc[0]['TOTAL_EVENTS']):,}"
     )
 
 # ---------------------------
@@ -237,3 +279,26 @@ st.dataframe(direction_df, use_container_width=True)
 
 st.subheader("Top 10 Largest Events Yesterday")
 st.dataframe(top_events_df, use_container_width=True)
+
+# ---------------------------
+# Advanced / Debug Metrics
+# ---------------------------
+with st.expander("Advanced Metrics (System + Diagnostics)"):
+
+    st.subheader("Estimated Data Volume")
+
+    if not daily_data_df.empty and pd.notna(daily_data_df.iloc[0][0]):
+        bytes_val = daily_data_df.iloc[0][0]
+        gb_val = bytes_val / (1024**3)
+
+        st.metric("Daily Data (GB)", f"{gb_val:.2f}")
+    
+        st.subheader("Top Ingestion Spikes")
+
+    if not top_spikes_df.empty:
+        st.dataframe(top_spikes_df, use_container_width=True)
+    
+        st.subheader("Raw Events by Hour")
+
+    if not hourly_events_df.empty:
+        st.bar_chart(hourly_events_df.set_index("HOUR"))
