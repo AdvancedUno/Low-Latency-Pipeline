@@ -123,6 +123,62 @@ WHERE DATE(event_start_ts) = CURRENT_DATE - 1
   AND peak_spread > 15
 """
 
+# Average events per second
+avg_events_per_sec = """
+WITH per_second AS (
+    SELECT
+        DATE_TRUNC('second', event_start_ts) AS ts_sec,
+        COUNT(*) AS events_per_sec
+    FROM btc_quotes
+    WHERE DATE(event_start_ts) = CURRENT_DATE - 1
+    GROUP BY 1
+)
+SELECT AVG(events_per_sec) AS avg_events_per_sec
+FROM per_second;"""
+
+# Peak ingestion rate
+peak_ingestion_rate = """
+WITH per_second AS (
+    SELECT
+        DATE_TRUNC('second', event_start_ts) AS ts_sec,
+        COUNT(*) AS events_per_sec
+    FROM btc_quotes
+    WHERE DATE(event_start_ts) = CURRENT_DATE - 1
+    GROUP BY 1
+)
+SELECT MAX(events_per_sec) AS peak_events_per_sec
+FROM per_second;"""
+
+# Top 10 ingestion spikes
+top_ingestion_spikes = """
+SELECT *
+FROM per_second
+ORDER BY events_per_sec DESC
+LIMIT 10;"""
+
+# Total daily volume (events)
+daily_volume = """
+SELECT COUNT(*) AS total_events
+FROM btc_quotes
+WHERE DATE(event_ts) = CURRENT_DATE - 1;"""
+
+# Data per day
+daily_data = """
+SELECT
+    SUM(LENGTH(TO_JSON(OBJECT_CONSTRUCT(*)))) AS total_bytes
+FROM btc_quotes
+WHERE DATE(event_ts) = CURRENT_DATE - 1;"""
+
+# Events per hour
+hourly_events = """
+SELECT
+    DATE_TRUNC('hour', event_ts) AS hour,
+    COUNT(*) AS events_per_hour
+FROM btc_quotes
+WHERE DATE(event_ts) = CURRENT_DATE - 1
+GROUP BY 1
+ORDER BY 1;"""
+
 # ---------------------------
 # Load data
 # ---------------------------
