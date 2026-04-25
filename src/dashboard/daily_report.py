@@ -290,15 +290,20 @@ with st.expander("Advanced Metrics (System + Diagnostics)"):
     if not daily_data_df.empty and pd.notna(daily_data_df.iloc[0][0]):
         bytes_val = daily_data_df.iloc[0][0]
         gb_val = bytes_val / (1024**3)
-
         st.metric("Daily Data (GB)", f"{gb_val:.2f}")
-    
-        st.subheader("Top Ingestion Spikes")
+    else:
+        st.info("No daily data volume available.")
+
+    st.subheader("Top Ingestion Spikes")
 
     if not top_spikes_df.empty:
         st.dataframe(top_spikes_df, use_container_width=True)
-    
-        st.subheader("Raw Events by Hour")
+    else:
+        st.info("No ingestion spike data available.")
+
+    st.subheader("Raw Events by Hour")
 
     if not hourly_events_df.empty:
         st.bar_chart(hourly_events_df.set_index("HOUR"))
+    else:
+        st.info("No hourly raw event data available.")
