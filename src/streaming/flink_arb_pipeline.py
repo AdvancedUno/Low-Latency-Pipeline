@@ -69,9 +69,22 @@ class ArbitrageWindowFunction(ProcessWindowFunction):
 
         bn_bid, bn_ask = max(binance_bids), min(binance_asks)
         cb_bid, cb_ask = max(coinbase_bids), min(coinbase_asks)
+        
+        FEE_RATE = 0.001 # 0.1% fee per trade
+        LATENCY_PENALTY = 2.00  # $2.00 slippage buffer
+        
+        # Buy on Coinbase, Sell on Binance
+        raw_spread_cb_bn = bn_bid - cb_ask
+        fees_cb_bn = (cb_ask * FEE_RATE) + (bn_bid * FEE_RATE)
+        effective_spread_cb_bn = raw_spread_cb_bn - fees_cb_bn - LATENCY_PENALTY
+        
+        # Buy on Binance, Sell on Coinbase
+        raw_spread_bn_cb = cb_bid - bn_ask
+        fees_bn_cb = (bn_ask * FEE_RATE) + (cb_bid * FEE_RATE)
+        effective_spread_bn_cb = raw_spread_bn_cb - fees_bn_cb - LATENCY_PENALTY
 
-        spread_bn_cb = bn_bid - cb_ask   # buy on Coinbase, sell on Binance
-        spread_cb_bn = cb_bid - bn_ask   # buy on Binance,  sell on Coinbase
+        # spread_bn_cb = bn_bid - cb_ask   # buy on Coinbase, sell on Binance
+        # spread_cb_bn = cb_bid - bn_ask   # buy on Binance,  sell on Coinbase
 
         yield Row(
             window_start_ms=context.window().start,
@@ -79,9 +92,9 @@ class ArbitrageWindowFunction(ProcessWindowFunction):
             Binance_ask=bn_ask,
             Coinbase_bid=cb_bid,
             Coinbase_ask=cb_ask,
-            spread_bn_bid_cb_ask=spread_bn_cb,
-            spread_cb_bid_bn_ask=spread_cb_bn,
-            arb_open=spread_bn_cb > 0 or spread_cb_bn > 0
+            spread_bn_bid_cb_ask=effective_spread_cb_bn,
+            spread_cb_bid_bn_ask=effective_spread_bn_cb,
+            arb_open=effective_spread_cb_bn > 0 or effective_spread_bn_cb > 0
         )
 
 #  Timestamp Assigner 
@@ -166,22 +179,7 @@ def build_pipeline():
         .process(ArbitrageWindowFunction(), output_type=gold_schema)
     )
 
-    # def json_to_row(json_str):
-    #     d = json.loads(json_str)
-    #     # Use Flink's Row object instead of a Python tuple
-    #     return Row(
-    #         window_start_ms=d["window_start_ms"],
-    #         Binance_bid=d["Binance_bid"],
-    #         Binance_ask=d["Binance_ask"],
-    #         Coinbase_bid=d["Coinbase_bid"],
-    #         Coinbase_ask=d["Coinbase_ask"],
-    #         spread_bn_bid_cb_ask=d["spread_bn_bid_cb_ask"],
-    #         spread_cb_bid_bn_ask=d["spread_cb_bid_bn_ask"],
-    #         arb_open=d["arb_open"]
-    #     )
 
-    # row_stream = arb_stream.map(json_to_row, output_type=gold_schema)
-    # table      = t_env.from_data_stream(row_stream)
     
     t_env = StreamTableEnvironment.create(env)
     table = t_env.from_data_stream(arb_stream)
@@ -206,7 +204,7 @@ def build_pipeline():
         )
     """)
 
-    #  Sink DDL: Kafka JSON 
+    #  Sink DDL for Kafka JSON 
     t_env.execute_sql(f"""
         CREATE TABLE arbitrage_gold_kafka (
             window_start_ms       BIGINT,
@@ -230,7 +228,7 @@ def build_pipeline():
     statement_set.add_insert("arbitrage_gold_s3",    table)
     statement_set.add_insert("arbitrage_gold_kafka", table)
 
-    print("Submitting Flink job (S3 Parquet + Kafka JSON sinks)...")
+    print("Submitting Flink job (S3 Parquet + Kafka JSON sinks)")
     statement_set.execute().wait()
 
 

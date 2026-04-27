@@ -12,7 +12,7 @@ consumer = KafkaConsumer(
     group_id="analytics-group"
 )
 
-# Rolling window for stats (last 60 seconds of 1s windows = 60 records)
+# Rolling window for stats
 WINDOW = 60
 spreads_bn_cb = deque(maxlen=WINDOW)
 spreads_cb_bn = deque(maxlen=WINDOW)

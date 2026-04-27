@@ -2,7 +2,6 @@ import os
 import urllib.request
 
 def download_hadoop_winutils():
-    # Switched to a reliable mirror for the Hadoop 3.3.0 binaries
     base_url = "https://raw.githubusercontent.com/kontext-tech/winutils/master/hadoop-3.3.0/bin/"
     files = ["winutils.exe", "hadoop.dll"]
     

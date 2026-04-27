@@ -123,7 +123,6 @@ ORDER BY peak_spread DESC
 LIMIT 10
 """
 
-# Optional fee-adjusted query
 fee_adjusted_query = """
 WITH fee_windows AS (
     SELECT
@@ -396,7 +395,7 @@ FROM event_profitability
 WHERE peak_net_spread_after_fees > 0
   AND duration_seconds >= 5;"""
 
-# ---------------------------
+
 # Load data
 kpi_df = run_query(kpi_query)
 direction_df = run_query(direction_query)
@@ -414,7 +413,7 @@ hourly_events_df = run_query(hourly_events)
 realistic_df = run_query(realistic_profitable_query)
 net_spread_query_df = run_query(net_spread_query)
 
-# ---------------------------
+
 # KPIs
 if not kpi_df.empty:
     row = kpi_df.iloc[0]
@@ -441,9 +440,8 @@ if not kpi_df.empty:
         else "0.00"
     )
 
-# ---------------------------
+
 # Pipeline Scale Metrics
-# ---------------------------
 st.subheader("Pipeline Scale Metrics")
 
 if (
@@ -469,9 +467,8 @@ if (
         f"{int(daily_vol_df.iloc[0]['TOTAL_EVENTS']):,}"
     )
 
-# ---------------------------
+
 # Charts
-# ---------------------------
 left, right = st.columns(2)
 
 with left:
@@ -504,9 +501,8 @@ st.dataframe(direction_df, use_container_width=True)
 st.subheader("Top 10 Largest Events Yesterday")
 st.dataframe(top_events_df, use_container_width=True)
 
-# ---------------------------
-# Advanced / Debug Metrics
-# ---------------------------
+
+# Debug stuff
 with st.expander("Advanced Metrics (System + Diagnostics)"):
 
     st.subheader("Estimated Data Volume")
