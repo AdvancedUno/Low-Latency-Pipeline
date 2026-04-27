@@ -152,15 +152,6 @@ def build_pipeline():
         .assign_timestamps_and_watermarks(wm_strategy)
     )
 
-    #  Arbitrage Window 
-    arb_stream = (
-        binance_stream
-        .union(coinbase_stream)
-        .map(lambda x: x, output_type=tuple_type)
-        .key_by(lambda x: "BTC-USD")
-        .window(TumblingEventTimeWindows.of(Time.seconds(1)))
-        .process(ArbitrageWindowFunction(), output_type=Types.STRING())
-    )
 
     #  Table API: convert Row stream 
     t_env = StreamTableEnvironment.create(env)

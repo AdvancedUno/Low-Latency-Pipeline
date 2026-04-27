@@ -11,6 +11,7 @@ from kafka import KafkaConsumer
 BOOTSTRAP = "localhost:9092"
 TOPIC = "arb-results"
 MAX_ROWS = 500
+MAX_LATENCY_MS = 10000
 
 st.set_page_config(page_title="Crypto Arbitrage Dashboard", layout="wide")
 st.title("Live Crypto Arbitrage Dashboard")
@@ -23,14 +24,24 @@ if "rows" not in st.session_state:
 consumer = KafkaConsumer(
     TOPIC,
     bootstrap_servers=BOOTSTRAP,
+    group_id="dashboard-hot-path", # Explicitly define the Real-Time Consumer Group
     value_deserializer=lambda m: json.loads(m.decode("utf-8")),
-    auto_offset_reset="latest",
+    auto_offset_reset="latest", # Always jump to the newest data on startup
     consumer_timeout_ms=1000,
 )
 
+current_time_ms = int(time.time() * 1000)
+
 # Pull available messages into session state
 for msg in consumer:
-    st.session_state.rows.append(msg.value)
+    data = msg.value
+    
+    # STALE DATA FILTER: If Flink is recovering from a crash and rapidly flushing the historical backlog, drop any records older than 10 seconds.
+    # Silently drop old data so traders don't execute dead opportunities
+    if (current_time_ms - data["window_start_ms"]) > MAX_LATENCY_MS:
+        continue 
+        
+    st.session_state.rows.append(data)
 
 # If no data yet, wait 2 seconds and refresh again instead of stopping
 if not st.session_state.rows:
