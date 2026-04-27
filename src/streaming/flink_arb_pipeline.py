@@ -100,6 +100,7 @@ def build_pipeline():
     # Use the modern, version-proof storage class
     storage = FileSystemCheckpointStorage(f"file:///{raw_path}")
     env.get_checkpoint_config().set_checkpoint_storage(storage)
+    
     #  Kafka Sources 
     def make_kafka_source(topic: str) -> KafkaSource:
         return (
@@ -142,6 +143,7 @@ def build_pipeline():
     arb_stream = (
         binance_stream
         .union(coinbase_stream)
+        .map(lambda x: x, output_type=tuple_type)
         .key_by(lambda x: "BTC-USD")
         .window(TumblingEventTimeWindows.of(Time.seconds(1)))
         .process(ArbitrageWindowFunction(), output_type=Types.STRING())
@@ -161,7 +163,7 @@ def build_pipeline():
         .union(coinbase_stream)
         .key_by(lambda x: "BTC-USD")
         .window(TumblingEventTimeWindows.of(Time.seconds(1)))
-        .process(ArbitrageWindowFunction(), output_type=gold_schema) # <-- CHANGE THIS LINE
+        .process(ArbitrageWindowFunction(), output_type=gold_schema)
     )
 
     # def json_to_row(json_str):

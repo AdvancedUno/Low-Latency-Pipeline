@@ -8,9 +8,8 @@ load_dotenv()
 
 st.set_page_config(page_title="Daily Arbitrage Report", layout="wide")
 
-# ---------------------------
+
 # Snowflake connection
-# ---------------------------
 def get_connection():
     return snowflake.connector.connect(
         user=os.getenv("SNOWFLAKE_USER"),
@@ -28,15 +27,13 @@ def run_query(query: str) -> pd.DataFrame:
     finally:
         conn.close()
 
-# ---------------------------
 # Title
-# ---------------------------
+
 st.title("Daily Arbitrage Report")
 st.caption("Summary of arbitrage activity for yesterday")
 
-# ---------------------------
+
 # KPI queries
-# ---------------------------
 kpi_query = """
 SELECT
     COUNT(*) AS num_events,
@@ -123,9 +120,8 @@ WHERE DATE(event_start_ts) = CURRENT_DATE - 1
   AND peak_spread > 15
 """
 
-# ---------------------------
+
 # Load data
-# ---------------------------
 kpi_df = run_query(kpi_query)
 direction_df = run_query(direction_query)
 hourly_df = run_query(hourly_query)
@@ -134,9 +130,8 @@ spread_df = run_query(spread_bucket_query)
 top_events_df = run_query(top_events_query)
 fee_df = run_query(fee_adjusted_query)
 
-# ---------------------------
+
 # KPIs
-# ---------------------------
 if not kpi_df.empty:
     row = kpi_df.iloc[0]
 
@@ -173,9 +168,8 @@ with right:
     if not direction_df.empty:
         st.bar_chart(direction_df.set_index("ARB_DIRECTION")[["EVENT_COUNT"]])
 
-# ---------------------------
+
 # Tables
-# ---------------------------
 st.subheader("Direction Summary")
 st.dataframe(direction_df, use_container_width=True)
 
